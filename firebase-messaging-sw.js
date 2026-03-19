@@ -1,25 +1,24 @@
 // firebase-messaging-sw.js
-// Handles: FCM background push + offline cache
-// BUILD_TIME is injected by GitHub Actions on every deploy → auto cache-bust
+// Cache version di-inject otomatis oleh Cloudflare Pages setiap deploy
 
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
-// ── CACHE CONFIG ─────────────────────────────────────────────
-// __BUILD_TIME__ is replaced by GitHub Actions on every deploy
-const BUILD_TIME = '__BUILD_TIME__';
-const CACHE_NAME = 'ah-cache-' + BUILD_TIME;
+// ── CACHE CONFIG ──────────────────────────────────────────────
+// CLOUDFLARE_BUILD_TIME diganti otomatis saat deploy
+// Tidak perlu ubah manual — otomatis setiap push
+const CACHE_NAME = 'ah-CLOUDFLARE_BUILD_TIME';
 
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './firebase-config.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/firebase-config.js',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
-// ── INSTALL: pre-cache static assets ─────────────────────────
+// ── INSTALL ───────────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -28,85 +27,67 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── ACTIVATE: delete ALL old caches ──────────────────────────
+// ── ACTIVATE: hapus cache lama ────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       )
     ).then(async () => {
       await self.clients.claim();
-
       const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-
       for (const client of allClients) {
         if (client.visibilityState === 'hidden') {
-          // App di background → reload otomatis saat dibuka lagi
-          client.postMessage({ type: 'AUTO_RELOAD', buildTime: BUILD_TIME });
+          client.postMessage({ type: 'AUTO_RELOAD' });
         } else {
-          // App sedang aktif → tampilkan banner
-          client.postMessage({ type: 'NEW_VERSION', buildTime: BUILD_TIME });
+          client.postMessage({ type: 'NEW_VERSION' });
         }
       }
     })
   );
 });
 
-// ── Handle skip waiting dari main thread ──────────────────────
+// ── SKIP WAITING ──────────────────────────────────────────────
 self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-// ── FETCH: network-first untuk HTML, cache-first untuk aset ──
+// ── FETCH ─────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-
   const url = event.request.url;
+  if (url.includes('firebaseio.com') || url.includes('googleapis.com') ||
+      url.includes('gstatic.com') || url.includes('firebase.google.com')) return;
 
-  // Jangan intercept Firebase / Google API
-  if (
-    url.includes('firebaseio.com') ||
-    url.includes('googleapis.com') ||
-    url.includes('gstatic.com') ||
-    url.includes('firebase.google.com')
-  ) return;
-
-  // index.html → network-first (langsung dapat versi terbaru)
-  if (event.request.mode === 'navigate' || url.endsWith('index.html') || url.endsWith('/')) {
+  if (event.request.mode === 'navigate' || url.endsWith('/') || url.endsWith('index.html')) {
     event.respondWith(
       fetch(event.request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
+        .then(res => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+          return res;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // Aset lain → cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return response;
+      return fetch(event.request).then(res => {
+        if (!res || res.status !== 200 || res.type === 'opaque') return res;
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        return res;
       }).catch(() => null);
     })
   );
 });
 
-// ── FCM: Firebase init ────────────────────────────────────────
-let messagingInitialized = false;
-
+// ── FCM INIT ──────────────────────────────────────────────────
+let fcmReady = false;
 try {
   firebase.initializeApp({
     apiKey:            "AIzaSyDt2SfzSUuPSvtRRTOfXNtL50petD_uWBE",
@@ -118,52 +99,37 @@ try {
     appId:             "1:1031810722583:web:29e0289ee69a3a4cb9e552",
     measurementId:     "G-GF401D97XL"
   });
-  messagingInitialized = true;
-} catch (e) {
-  console.warn('[SW] Firebase init error:', e.message);
+  fcmReady = true;
+} catch(e) {
+  console.warn('[SW] Firebase:', e.message);
 }
 
-// ── FCM: Background message handler ──────────────────────────
-if (messagingInitialized) {
+// ── FCM BACKGROUND ────────────────────────────────────────────
+if (fcmReady) {
   const messaging = firebase.messaging();
-
   messaging.onBackgroundMessage(payload => {
-    const notification = payload.notification || {};
-    const data         = payload.data        || {};
-
-    const title = notification.title || '🪂 AirdropHunter';
-    const body  = notification.body  || 'Ada airdrop baru yang potensial!';
-    const icon  = notification.icon  || './icons/icon-192.png';
-
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge:    './icons/icon-72.png',
-      tag:      'ah-notif-' + Date.now(),
-      renotify: true,
-      vibrate:  [200, 100, 200],
-      data:     { url: data.url || './' },
-      actions: [
-        { action: 'open',    title: '🔍 Lihat Sekarang' },
-        { action: 'dismiss', title: 'Tutup' }
-      ]
+    const n = payload.notification || {};
+    self.registration.showNotification(n.title || '🪂 AirdropHunter', {
+      body:    n.body || 'Ada airdrop baru!',
+      icon:    '/icons/icon-192.png',
+      badge:   '/icons/icon-72.png',
+      tag:     'ah-' + Date.now(),
+      vibrate: [200, 100, 200],
+      data:    { url: (payload.data && payload.data.url) || '/' },
+      actions: [{ action: 'open', title: '🔍 Lihat' }, { action: 'dismiss', title: 'Tutup' }]
     });
   });
 }
 
-// ── Notification click ────────────────────────────────────────
+// ── NOTIF CLICK ───────────────────────────────────────────────
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   if (event.action === 'dismiss') return;
-
-  const targetUrl = (event.notification.data && event.notification.data.url) || './';
-
+  const url = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      for (const client of clientList) {
-        if ('focus' in client) return client.focus();
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
     })
   );
 });

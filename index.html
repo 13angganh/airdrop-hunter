@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AirdropHunter" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -1077,83 +1077,35 @@ window.addEventListener('online',  syncOnlineStatus);
 window.addEventListener('offline', syncOnlineStatus);
 syncOnlineStatus();
 
-// ─── AUTO-UPDATE SYSTEM ──────────────────────────────────────────────────────
-//
-// Skenario A — App di background / baru dibuka:
-//   SW kirim AUTO_RELOAD → app reload otomatis tanpa ganggu user
-//
-// Skenario B — App sedang aktif dipakai:
-//   SW kirim NEW_VERSION → muncul banner hijau "Muat Ulang"
-//   User tap → reload. Tidak paksa reload supaya tidak ganggu.
-//
-// Skenario C — SW baru install saat tab terbuka (updatefound):
-//   SW baru langsung skip waiting → activate → kirim pesan ke tab
-
-let swRegistration = null;
-
+// ─── SERVICE WORKER ──────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-
-  // ── Listen for messages from SW ────────────────────────────
-  navigator.serviceWorker.addEventListener('message', event => {
-    if (!event.data) return;
-
-    if (event.data.type === 'AUTO_RELOAD') {
-      // App baru dibuka dari background — reload diam-diam
-      window.location.reload();
-    }
-
-    if (event.data.type === 'NEW_VERSION') {
-      // App sedang aktif — tampilkan banner
-      document.getElementById('update-banner').classList.add('visible');
-    }
-  });
-
-  // ── Register SW ────────────────────────────────────────────
-  navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' })
+  navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
     .then(reg => {
-      swRegistration = reg;
       console.log('[SW] Registered:', reg.scope);
 
-      // Jika ada SW baru yang sudah install dan menunggu (waiting)
-      // → langsung suruh skip waiting supaya aktif sekarang
-      if (reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-
-      // SW baru ditemukan saat app sedang buka
+      // SW baru ditemukan → langsung aktivasi
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         if (!newSW) return;
-
         newSW.addEventListener('statechange', () => {
-          if (newSW.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
-              // Ada SW lama yang aktif — suruh SW baru skip waiting langsung
-              newSW.postMessage({ type: 'SKIP_WAITING' });
-              // SW baru akan activate → kirim NEW_VERSION / AUTO_RELOAD ke tab
-            }
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            document.getElementById('update-banner').classList.add('visible');
           }
         });
       });
-
-      // Deteksi saat SW controller berganti (setelah skipWaiting)
-      // Jika tab sedang hidden → reload otomatis
-      // Jika tab sedang aktif → banner sudah dikirim oleh SW
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (document.visibilityState === 'hidden') {
-          // Tab di background — reload saat user buka lagi
-          window.addEventListener('visibilitychange', function reloadOnVisible() {
-            if (document.visibilityState === 'visible') {
-              window.removeEventListener('visibilitychange', reloadOnVisible);
-              window.location.reload();
-            }
-          });
-        }
-        // Jika visible: SW sudah kirim NEW_VERSION → banner sudah muncul
-      });
-
     })
-    .catch(e => console.warn('[SW] Registration failed:', e));
+    .catch(e => console.warn('[SW] Failed:', e));
+
+  // Pesan dari SW
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (!event.data) return;
+    if (event.data.type === 'NEW_VERSION') {
+      document.getElementById('update-banner').classList.add('visible');
+    }
+    if (event.data.type === 'AUTO_RELOAD') {
+      window.location.reload();
+    }
+  });
 }
 
 // Tap "Muat Ulang" di banner

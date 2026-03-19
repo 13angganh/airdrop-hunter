@@ -57,6 +57,8 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = event.request.url;
+  // Skip non-http requests (chrome-extension, etc)
+  if (!url.startsWith('http')) return;
   if (url.includes('firebaseio.com') || url.includes('googleapis.com') ||
       url.includes('gstatic.com') || url.includes('firebase.google.com')) return;
 

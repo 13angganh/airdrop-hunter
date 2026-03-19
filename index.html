@@ -417,6 +417,23 @@
 </head>
 <body>
 
+<!-- CRITICAL: Capture beforeinstallprompt via classic script BEFORE ES module loads -->
+<script>
+  window._deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    window._deferredPrompt = e;
+    var fab = document.getElementById('fab-install');
+    if (fab) fab.classList.add('visible');
+    console.log('[PWA] beforeinstallprompt captured');
+  });
+  window.addEventListener('appinstalled', function() {
+    window._deferredPrompt = null;
+    var fab = document.getElementById('fab-install');
+    if (fab) fab.classList.remove('visible');
+  });
+</script>
+
 <!-- Auto-update banner (shown when new SW activates) -->
 <div id="update-banner">
   <span>🆕 Versi terbaru tersedia!</span>
@@ -973,8 +990,9 @@ document.getElementById('notif-dismiss-btn').addEventListener('click', () => {
 document.getElementById('notif-btn').addEventListener('click', requestNotifPermission);
 
 // ─── PWA INSTALL ─────────────────────────────────────────────────────────────
+// beforeinstallprompt captured early by classic script (window._deferredPrompt)
+// Sync to module-scoped deferredPrompt for install-btn
 window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
   deferredPrompt = e;
   document.getElementById('install-banner').classList.add('visible');
 });
@@ -1028,39 +1046,34 @@ if (isInstalled) {
       document.getElementById('ios-hint').classList.remove('open');
   });
 } else {
-  // Android Chrome:
-  // Strategi: tampilkan FAB setelah 3 detik sebagai fallback
-  // supaya tidak bergantung sepenuhnya pada beforeinstallprompt
-  // (event kadang lambat atau tidak fire jika manifest baru saja diupdate)
+  // Android Chrome
+  // Pakai window._deferredPrompt (di-set oleh classic script sebelum module load)
+  // sehingga tidak ada masalah scope antar module/non-module
 
-  // Jika beforeinstallprompt sudah fire sebelum kode ini jalan
-  if (deferredPrompt) showFab();
+  // Tampilkan FAB segera jika prompt sudah siap
+  if (window._deferredPrompt) showFab();
 
-  // Dengarkan event (untuk kasus normal)
-  window.addEventListener('beforeinstallprompt', () => {
-    showFab();
-  });
-
-  // Fallback: tampilkan setelah 3 detik jika belum muncul
-  // Tombol tetap berfungsi — kalau deferredPrompt belum ada,
-  // arahkan user ke menu Chrome manual
+  // Atau tampil setelah 1.5 detik sebagai fallback
   setTimeout(() => {
     if (!isInstalled) showFab();
-  }, 3000);
+  }, 1500);
 
   fab.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      // Cara terbaik: native install dialog
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+    const prompt = window._deferredPrompt;
+    if (prompt) {
+      // Native PWA install dialog
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      window._deferredPrompt = null;
       deferredPrompt = null;
       if (outcome === 'accepted') {
         hideFab();
         document.getElementById('install-banner').classList.remove('visible');
+        showToast('🎉 AirdropHunter berhasil diinstall!');
       }
     } else {
-      // Fallback: instruksi manual via Chrome menu
-      showToast('Tap ⋮ → "Tambahkan ke layar utama"');
+      // Fallback manual — prompt belum siap
+      showToast('Tap ⋮ di Chrome → "Tambahkan ke layar utama"');
     }
   });
 }

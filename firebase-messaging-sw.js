@@ -6,10 +6,9 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
 // ── CACHE CONFIG ─────────────────────────────────────────────
-// __BUILD_TIME__ is replaced by GitHub Actions with a real timestamp
-// so every deploy gets a unique cache name → old cache auto-evicted
-const BUILD_TIME  = '__BUILD_TIME__';
-const CACHE_NAME  = 'ah-cache-' + BUILD_TIME;
+// __BUILD_TIME__ is replaced by GitHub Actions on every deploy
+const BUILD_TIME = '__BUILD_TIME__';
+const CACHE_NAME = 'ah-cache-' + BUILD_TIME;
 
 const STATIC_ASSETS = [
   './',
@@ -25,7 +24,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())  // activate immediately, don't wait
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -38,24 +37,38 @@ self.addEventListener('activate', event => {
           .filter(key => key !== CACHE_NAME)
           .map(key => caches.delete(key))
       )
-    ).then(() => {
-      // Take control of all open tabs immediately
-      self.clients.claim();
-      // Notify all tabs that a new version is available
-      self.clients.matchAll({ type: 'window' }).then(clients =>
-        clients.forEach(client => client.postMessage({ type: 'NEW_VERSION', buildTime: BUILD_TIME }))
-      );
+    ).then(async () => {
+      await self.clients.claim();
+
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+      for (const client of allClients) {
+        if (client.visibilityState === 'hidden') {
+          // App di background → reload otomatis saat dibuka lagi
+          client.postMessage({ type: 'AUTO_RELOAD', buildTime: BUILD_TIME });
+        } else {
+          // App sedang aktif → tampilkan banner
+          client.postMessage({ type: 'NEW_VERSION', buildTime: BUILD_TIME });
+        }
+      }
     })
   );
 });
 
-// ── FETCH: network-first for HTML, cache-first for assets ────
+// ── Handle skip waiting dari main thread ──────────────────────
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// ── FETCH: network-first untuk HTML, cache-first untuk aset ──
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = event.request.url;
 
-  // Never intercept Firebase / Google API calls — let them go direct
+  // Jangan intercept Firebase / Google API
   if (
     url.includes('firebaseio.com') ||
     url.includes('googleapis.com') ||
@@ -63,7 +76,7 @@ self.addEventListener('fetch', event => {
     url.includes('firebase.google.com')
   ) return;
 
-  // index.html → network-first (so updates load immediately)
+  // index.html → network-first (langsung dapat versi terbaru)
   if (event.request.mode === 'navigate' || url.endsWith('index.html') || url.endsWith('/')) {
     event.respondWith(
       fetch(event.request)
@@ -77,7 +90,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Other static assets → cache-first
+  // Aset lain → cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -92,19 +105,18 @@ self.addEventListener('fetch', event => {
 });
 
 // ── FCM: Firebase init ────────────────────────────────────────
-// PENTING: Ganti config ini dengan config Firebase project kamu!
-// (sama persis dengan yang ada di firebase-config.js)
 let messagingInitialized = false;
 
 try {
   firebase.initializeApp({
-    apiKey:            "AIzaSyC3tF32e7k0vIbNEPbDhhpJrcSUFjSuQes",
-    authDomain:        "solana-memecoin-tracker.firebaseapp.com",
-    databaseURL:       "https://solana-memecoin-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId:         "solana-memecoin-tracker",
-    storageBucket:     "solana-memecoin-tracker.firebasestorage.app",
-    messagingSenderId: "1018565776645",
-    appId:             "1:1018565776645:web:80bb90c98efa9027ae936c"
+    apiKey:            "AIzaSyDt2SfzSUuPSvtRRTOfXNtL50petD_uWBE",
+    authDomain:        "airdrop-hunter-2f914.firebaseapp.com",
+    databaseURL:       "https://airdrop-hunter-2f914-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "airdrop-hunter-2f914",
+    storageBucket:     "airdrop-hunter-2f914.firebasestorage.app",
+    messagingSenderId: "1031810722583",
+    appId:             "1:1031810722583:web:29e0289ee69a3a4cb9e552",
+    measurementId:     "G-GF401D97XL"
   });
   messagingInitialized = true;
 } catch (e) {
@@ -119,18 +131,18 @@ if (messagingInitialized) {
     const notification = payload.notification || {};
     const data         = payload.data        || {};
 
-    const title   = notification.title || '🪂 AirdropHunter';
-    const body    = notification.body  || 'Ada airdrop baru yang potensial!';
-    const icon    = notification.icon  || './icons/icon-192.png';
+    const title = notification.title || '🪂 AirdropHunter';
+    const body  = notification.body  || 'Ada airdrop baru yang potensial!';
+    const icon  = notification.icon  || './icons/icon-192.png';
 
     self.registration.showNotification(title, {
       body,
       icon,
-      badge:     './icons/icon-72.png',
-      tag:       'ah-notif-' + Date.now(),
-      renotify:  true,
-      vibrate:   [200, 100, 200],
-      data:      { url: data.url || './' },
+      badge:    './icons/icon-72.png',
+      tag:      'ah-notif-' + Date.now(),
+      renotify: true,
+      vibrate:  [200, 100, 200],
+      data:     { url: data.url || './' },
       actions: [
         { action: 'open',    title: '🔍 Lihat Sekarang' },
         { action: 'dismiss', title: 'Tutup' }
@@ -148,11 +160,9 @@ self.addEventListener('notificationclick', event => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      // Focus existing tab if open
       for (const client of clientList) {
         if ('focus' in client) return client.focus();
       }
-      // Otherwise open new tab
       if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
     })
   );

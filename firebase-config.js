@@ -1,22 +1,13 @@
-// ═══════════════════════════════════════════════════════════════
-//  firebase-config.js  —  WAJIB diisi sebelum deploy!
-//
-//  Cara ambil config:
-//  Firebase Console → Project Settings → Your apps → SDK setup
-//
-//  Cara ambil VAPID key:
-//  Firebase Console → Project Settings → Cloud Messaging
-//  → Web Push certificates → Generate key pair
-// ═══════════════════════════════════════════════════════════════
-
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 window.FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyC3tF32e7k0vIbNEPbDhhpJrcSUFjSuQes",
-  authDomain:        "solana-memecoin-tracker.firebaseapp.com",
-  databaseURL:       "https://solana-memecoin-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "solana-memecoin-tracker",
-  storageBucket:     "solana-memecoin-tracker.firebasestorage.app",
-  messagingSenderId: "1018565776645",
-  appId:             "1:1018565776645:web:80bb90c98efa9027ae936c"
+  apiKey:            "AIzaSyDt2SfzSUuPSvtRRTOfXNtL50petD_uWBE",
+  authDomain:        "airdrop-hunter-2f914.firebaseapp.com",
+  databaseURL:       "https://airdrop-hunter-2f914-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "airdrop-hunter-2f914",
+  storageBucket:     "airdrop-hunter-2f914.firebasestorage.app",
+  messagingSenderId: "1031810722583",
+  appId:             "1:1031810722583:web:29e0289ee69a3a4cb9e552",
+  measurementId:     "G-GF401D97XL"
 };
 
-window.FCM_VAPID_KEY = "BFOwkG5lrgi5BnRgeX2Gl4jvYyjexU4KyQDTYTWKPbPS6Fmclh7YO1RXndEjDZzvN5wq6m0qjaLqnFpKGsf1wy8";
+window.FCM_VAPID_KEY = "BKlvaWcwD4DFIGrj96mLooWEePFF5Qcmv8GsDtok35NOyi8HaO4hZdEwTo4DGJEBVzrvV9lsJyNeAJ5Cl4nPseE";

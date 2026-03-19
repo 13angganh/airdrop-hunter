@@ -1003,7 +1003,7 @@ const fab = document.getElementById('fab-install');
 function showFab() { fab.classList.add('visible'); }
 function hideFab() { fab.classList.remove('visible'); }
 
-// Detect if already running as installed PWA
+// Cek apakah sudah running sebagai PWA installed
 const isInstalled = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
 
@@ -1011,38 +1011,46 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
 }
 
-// Show FAB logic:
-// Android/Chrome: show when beforeinstallprompt fires (deferredPrompt ready)
-// iOS Safari: always show (no beforeinstallprompt support) unless already installed
-// Already installed: never show
-
-if (!isInstalled) {
-  if (isIOS()) {
-    // iOS — show immediately, tapping opens instruction sheet
-    showFab();
-    fab.addEventListener('click', () => {
-      document.getElementById('ios-hint').classList.add('open');
-    });
-    document.getElementById('ios-close').addEventListener('click', () => {
+// Jika sudah installed → sembunyikan FAB selamanya
+if (isInstalled) {
+  hideFab();
+} else if (isIOS()) {
+  // iOS Safari: tidak ada beforeinstallprompt → tampilkan langsung
+  showFab();
+  fab.addEventListener('click', () => {
+    document.getElementById('ios-hint').classList.add('open');
+  });
+  document.getElementById('ios-close').addEventListener('click', () => {
+    document.getElementById('ios-hint').classList.remove('open');
+  });
+  document.getElementById('ios-hint').addEventListener('click', e => {
+    if (e.target === document.getElementById('ios-hint'))
       document.getElementById('ios-hint').classList.remove('open');
-    });
-    document.getElementById('ios-hint').addEventListener('click', e => {
-      if (e.target === document.getElementById('ios-hint'))
-        document.getElementById('ios-hint').classList.remove('open');
-    });
-  } else {
-    // Android/Chrome — show only when browser signals installable
-    // beforeinstallprompt already captured deferredPrompt above
-    // Check if prompt already captured
-    if (deferredPrompt) showFab();
-    // Also listen for future capture (in case FAB renders before prompt fires)
-    window.addEventListener('beforeinstallprompt', () => showFab());
+  });
+} else {
+  // Android Chrome:
+  // Strategi: tampilkan FAB setelah 3 detik sebagai fallback
+  // supaya tidak bergantung sepenuhnya pada beforeinstallprompt
+  // (event kadang lambat atau tidak fire jika manifest baru saja diupdate)
 
-    fab.addEventListener('click', async () => {
-      if (!deferredPrompt) {
-        showToast('Buka di Chrome untuk install');
-        return;
-      }
+  // Jika beforeinstallprompt sudah fire sebelum kode ini jalan
+  if (deferredPrompt) showFab();
+
+  // Dengarkan event (untuk kasus normal)
+  window.addEventListener('beforeinstallprompt', () => {
+    showFab();
+  });
+
+  // Fallback: tampilkan setelah 3 detik jika belum muncul
+  // Tombol tetap berfungsi — kalau deferredPrompt belum ada,
+  // arahkan user ke menu Chrome manual
+  setTimeout(() => {
+    if (!isInstalled) showFab();
+  }, 3000);
+
+  fab.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      // Cara terbaik: native install dialog
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       deferredPrompt = null;
@@ -1050,8 +1058,11 @@ if (!isInstalled) {
         hideFab();
         document.getElementById('install-banner').classList.remove('visible');
       }
-    });
-  }
+    } else {
+      // Fallback: instruksi manual via Chrome menu
+      showToast('Tap ⋮ → "Tambahkan ke layar utama"');
+    }
+  });
 }
 
 // ─── ONLINE / OFFLINE ────────────────────────────────────────────────────────
@@ -1065,44 +1076,89 @@ window.addEventListener('online',  syncOnlineStatus);
 window.addEventListener('offline', syncOnlineStatus);
 syncOnlineStatus();
 
-// ─── AUTO-UPDATE (SW message) ─────────────────────────────────────────────────
-// FIX: when GitHub Actions deploys a new version, the SW sends 'NEW_VERSION'
-// We show a banner so user can reload to get the new version
+// ─── AUTO-UPDATE SYSTEM ──────────────────────────────────────────────────────
+//
+// Skenario A — App di background / baru dibuka:
+//   SW kirim AUTO_RELOAD → app reload otomatis tanpa ganggu user
+//
+// Skenario B — App sedang aktif dipakai:
+//   SW kirim NEW_VERSION → muncul banner hijau "Muat Ulang"
+//   User tap → reload. Tidak paksa reload supaya tidak ganggu.
+//
+// Skenario C — SW baru install saat tab terbuka (updatefound):
+//   SW baru langsung skip waiting → activate → kirim pesan ke tab
+
+let swRegistration = null;
+
 if ('serviceWorker' in navigator) {
+
+  // ── Listen for messages from SW ────────────────────────────
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data && event.data.type === 'NEW_VERSION') {
-      const banner = document.getElementById('update-banner');
-      banner.classList.add('visible');
+    if (!event.data) return;
+
+    if (event.data.type === 'AUTO_RELOAD') {
+      // App baru dibuka dari background — reload diam-diam
+      window.location.reload();
+    }
+
+    if (event.data.type === 'NEW_VERSION') {
+      // App sedang aktif — tampilkan banner
+      document.getElementById('update-banner').classList.add('visible');
     }
   });
-}
 
-document.getElementById('update-reload-btn').addEventListener('click', () => {
-  window.location.reload();
-});
-
-// ─── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
-if ('serviceWorker' in navigator) {
+  // ── Register SW ────────────────────────────────────────────
   navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' })
     .then(reg => {
-      console.log('[SW] Registered, scope:', reg.scope);
-      // FIX: check for waiting SW (pending update) immediately on load
+      swRegistration = reg;
+      console.log('[SW] Registered:', reg.scope);
+
+      // Jika ada SW baru yang sudah install dan menunggu (waiting)
+      // → langsung suruh skip waiting supaya aktif sekarang
       if (reg.waiting) {
-        document.getElementById('update-banner').classList.add('visible');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
+
+      // SW baru ditemukan saat app sedang buka
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         if (!newSW) return;
+
         newSW.addEventListener('statechange', () => {
-          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-            // New SW installed but waiting — show update banner
-            document.getElementById('update-banner').classList.add('visible');
+          if (newSW.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // Ada SW lama yang aktif — suruh SW baru skip waiting langsung
+              newSW.postMessage({ type: 'SKIP_WAITING' });
+              // SW baru akan activate → kirim NEW_VERSION / AUTO_RELOAD ke tab
+            }
           }
         });
       });
+
+      // Deteksi saat SW controller berganti (setelah skipWaiting)
+      // Jika tab sedang hidden → reload otomatis
+      // Jika tab sedang aktif → banner sudah dikirim oleh SW
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (document.visibilityState === 'hidden') {
+          // Tab di background — reload saat user buka lagi
+          window.addEventListener('visibilitychange', function reloadOnVisible() {
+            if (document.visibilityState === 'visible') {
+              window.removeEventListener('visibilitychange', reloadOnVisible);
+              window.location.reload();
+            }
+          });
+        }
+        // Jika visible: SW sudah kirim NEW_VERSION → banner sudah muncul
+      });
+
     })
     .catch(e => console.warn('[SW] Registration failed:', e));
 }
+
+// Tap "Muat Ulang" di banner
+document.getElementById('update-reload-btn').addEventListener('click', () => {
+  window.location.reload();
+});
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 let toastTimer = null;

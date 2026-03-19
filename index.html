@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AirdropHunter</title>
+  <meta name="theme-color" content="#8b5cf6" />
+  <meta name="description" content="Panduan airdrop crypto potensial — farm, track, dan klaim reward." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AirdropHunter" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & VARS ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0c1d; --bg2: #1a1033; --bg3: #0d1b2a;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.08);
+      --purple: #8b5cf6; --purple-light: #a78bfa;
+      --cyan: #06b6d4; --amber: #f59e0b;
+      --red: #f43f5e; --green: #10b981;
+      --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+      --radius: 14px; --radius-sm: 10px;
+    }
+
+    html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Sora', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      min-height: 100dvh; color: var(--text);
+      overflow-x: hidden;
+      /* safe area for notch/home-bar devices */
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    button { font-family: inherit; cursor: pointer; }
+    a { color: inherit; }
+
+    /* ── UPDATE BANNER (new version available) ── */
+    #update-banner {
+      display: none;
+      background: linear-gradient(90deg, rgba(16,185,129,0.2), rgba(6,182,212,0.15));
+      border-bottom: 1px solid rgba(16,185,129,0.4);
+      padding: 8px 16px; align-items: center; gap: 10px;
+      font-size: 12px; color: #6ee7b7; position: relative; z-index: 110;
+    }
+    #update-banner.visible { display: flex; }
+    #update-banner span { flex: 1; }
+    #update-reload-btn {
+      padding: 5px 14px; border-radius: 7px; border: none;
+      background: var(--green); color: #fff;
+      font-size: 11px; font-weight: 700;
+    }
+
+    /* ── OFFLINE BAR ── */
+    #offline-bar {
+      display: none;
+      background: rgba(244,63,94,0.15); border-bottom: 1px solid rgba(244,63,94,0.3);
+      text-align: center; font-size: 11px; color: #fca5a5; padding: 6px 12px;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      background: linear-gradient(90deg, #1a0533 0%, #0f1f3d 100%);
+      border-bottom: 1px solid rgba(139,92,246,0.3);
+      padding: 12px 14px 0;
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    /* Install banner */
+    #install-banner {
+      display: none;
+      background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(6,182,212,0.12));
+      border: 1px solid rgba(139,92,246,0.35); border-radius: 10px;
+      padding: 9px 12px; margin-bottom: 10px;
+      align-items: center; gap: 8px;
+    }
+    #install-banner.visible { display: flex; }
+    #install-banner span { flex: 1; font-size: 11px; color: var(--text-muted); }
+    #install-btn  { padding: 5px 12px; border-radius: 7px; border: none; background: var(--purple); color: #fff; font-size: 11px; font-weight: 700; }
+    #install-close { background: none; border: none; color: var(--text-dim); font-size: 20px; line-height: 1; padding: 0 2px; }
+
+    /* Announce bar */
+    #announce-bar {
+      display: none;
+      background: linear-gradient(90deg, rgba(6,182,212,0.12), rgba(139,92,246,0.12));
+      border-bottom: 1px solid rgba(6,182,212,0.25);
+      text-align: center; font-size: 11px; color: var(--cyan);
+      padding: 6px 14px; margin-bottom: 8px; border-radius: 8px;
+      cursor: pointer;
+    }
+    #announce-bar.visible { display: block; }
+
+    /* Header top row */
+    .header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+
+    .logo-icon {
+      width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--purple), var(--cyan));
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .logo-title {
+      font-size: 16px; font-weight: 800; letter-spacing: -.4px;
+      background: linear-gradient(90deg, var(--purple-light), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo-sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+
+    .header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+    /* Status dot */
+    #status-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      transition: background .3s; flex-shrink: 0;
+    }
+    #status-dot.offline { background: var(--red); }
+    #status-label { font-size: 9px; color: var(--text-dim); }
+
+    /* Notif bell */
+    #notif-btn {
+      background: none; border: none; padding: 4px; font-size: 17px;
+      position: relative; line-height: 1;
+    }
+    #notif-badge {
+      position: absolute; top: 1px; right: 1px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--red); display: none;
+    }
+    #notif-badge.on { display: block; }
+
+    /* Tabs */
+    .tabs { display: flex; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 7px 12px; border-radius: 8px 8px 0 0; border: none;
+      background: transparent; color: var(--text-dim);
+      font-size: 11px; font-weight: 400;
+      border-bottom: 2px solid transparent;
+      transition: all .2s; white-space: nowrap;
+    }
+    .tab-btn.active {
+      color: var(--purple-light); font-weight: 700;
+      background: rgba(139,92,246,0.14);
+      border-bottom-color: var(--purple);
+    }
+
+    /* ── MAIN ── */
+    main { max-width: 860px; margin: 0 auto; padding: 18px 12px 24px; }
+
+    .tab-panel { display: none; animation: fadeUp .3s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Notif permission card */
+    #notif-prompt {
+      display: none;
+      background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.08));
+      border: 1px solid rgba(139,92,246,0.28); border-radius: var(--radius);
+      padding: 14px; margin-bottom: 16px; align-items: center; gap: 12px;
+    }
+    #notif-prompt.visible { display: flex; }
+    #notif-prompt-icon { font-size: 26px; flex-shrink: 0; }
+    #notif-prompt-body { flex: 1; }
+    #notif-prompt-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    #notif-prompt-desc  { font-size: 11px; color: var(--text-muted); }
+    #notif-allow-btn  { padding: 7px 14px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    #notif-dismiss-btn { background: none; border: none; color: var(--text-dim); font-size: 20px; line-height: 1; padding: 0 4px; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+    .stat-card { background: var(--surface); border-radius: 12px; padding: 12px 8px; text-align: center; border: 1px solid var(--border); }
+    .stat-icon  { font-size: 17px; margin-bottom: 3px; }
+    .stat-val   { font-size: 18px; font-weight: 800; line-height: 1; }
+    .stat-lbl   { font-size: 9px; color: var(--text-muted); margin-top: 3px; }
+
+    #last-updated-row { font-size: 10px; color: var(--text-dim); text-align: right; margin-bottom: 12px; min-height: 14px; }
+
+    /* Filters */
+    .filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 6px; margin-bottom: 12px; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-btn { padding: 5px 11px; border-radius: 20px; font-size: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); white-space: nowrap; transition: all .2s; }
+    .filter-btn.active { background: rgba(139,92,246,0.18); color: var(--purple-light); border-color: var(--purple); }
+
+    /* Card list */
+    #cards-list { display: flex; flex-direction: column; gap: 10px; }
+
+    /* Skeleton */
+    .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: var(--radius); }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .skel-card { height: 104px; margin-bottom: 10px; }
+
+    /* Airdrop card */
+    .ah-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 13px 13px 13px 17px;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: background .18s, transform .12s;
+      /* FIX: ensure touch targets are comfortable */
+      min-height: 88px;
+    }
+    .ah-card:hover  { background: var(--surface-hover); }
+    .ah-card:active { transform: scale(0.985); }
+
+    .ah-card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+
+    .new-pill {
+      position: absolute; top: 9px; right: 9px;
+      background: var(--red); color: #fff;
+      font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 20px;
+      animation: blink 2s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    .ah-card-row  { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .ah-card-main { flex: 1; min-width: 0; /* FIX: prevent text overflow */ }
+
+    .badge-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+    .pill      { padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+
+    .card-name { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; /* FIX: overflow wrap */ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-meta { font-size: 10px; color: var(--text-muted); margin-bottom: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .prog-row   { display: flex; align-items: center; gap: 6px; }
+    .prog-track { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .prog-fill  { height: 100%; border-radius: 3px; transition: width .4s ease; }
+    .prog-lbl   { font-size: 9px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+
+    /* Score ring */
+    .score-ring {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .score-num { font-size: 14px; font-weight: 800; line-height: 1; }
+    .score-sub { font-size: 8px; color: var(--text-dim); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 48px 0; color: var(--text-dim); font-size: 13px; }
+    .empty-state span { display: block; font-size: 32px; margin-bottom: 10px; }
+
+    /* ── MODAL ── */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.72); z-index: 200;
+      backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+      align-items: flex-end; justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal-sheet {
+      background: linear-gradient(180deg, #1c1040 0%, #0f1525 100%);
+      border-radius: 20px 20px 0 0; width: 100%; max-width: 860px;
+      max-height: 90dvh; overflow-y: auto; overflow-x: hidden;
+      border: 1px solid rgba(139,92,246,0.25); border-bottom: none;
+      animation: slideUp .28s ease;
+      /* FIX: padding-bottom for home bar on iOS */
+      padding-bottom: env(safe-area-inset-bottom, 12px);
+    }
+    @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+
+    /* Modal drag handle */
+    .modal-handle {
+      width: 36px; height: 4px; border-radius: 4px;
+      background: rgba(255,255,255,0.2); margin: 10px auto 0;
+    }
+
+    .modal-head { padding: 12px 18px 0; margin-bottom: 14px; }
+    .modal-toprow { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .modal-name { font-size: 17px; font-weight: 800; line-height: 1.3; flex: 1; }
+    #modal-close-btn {
+      background: rgba(255,255,255,0.1); border: none; border-radius: 8px;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 19px; flex-shrink: 0;
+    }
+    .modal-pills { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 12px; }
+
+    .modal-body { padding: 0 18px 8px; }
+    .sec-label { font-size: 11px; font-weight: 700; color: var(--purple-light); margin-bottom: 8px; }
+
+    /* Checklist */
+    .task-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+    .task-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: background .15s, border-color .15s;
+      /* FIX: min touch target */
+      min-height: 44px;
+    }
+    .task-item:active { background: var(--surface-hover); }
+    .task-item.done   { background: rgba(139,92,246,0.09); }
+    .task-item.done .task-text { color: var(--text-dim); text-decoration: line-through; }
+
+    .task-check {
+      width: 19px; height: 19px; border-radius: 5px; flex-shrink: 0;
+      border: 2px solid #475569; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, border-color .15s;
+      font-size: 11px; font-weight: 900; color: #fff;
+    }
+    .task-text { font-size: 12px; line-height: 1.55; }
+
+    /* Tips box */
+    .tips-box {
+      background: rgba(251,191,36,0.07);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
+    }
+    .tips-lbl  { font-size: 11px; font-weight: 700; color: var(--amber); margin-bottom: 4px; }
+    .tips-body { font-size: 11px; color: var(--text-muted); line-height: 1.7; }
+
+    /* Modal links */
+    .modal-links { display: flex; gap: 8px; }
+    .mlink {
+      flex: 1; padding: 11px; border-radius: var(--radius-sm);
+      text-align: center; text-decoration: none;
+      font-weight: 700; font-size: 12px; transition: opacity .15s;
+      /* FIX: min touch target */
+      min-height: 44px; display: flex; align-items: center; justify-content: center;
+    }
+    .mlink:active  { opacity: .78; }
+    .mlink.outline { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); color: var(--text); }
+
+    /* ── GUIDE ── */
+    .guide-list { display: flex; flex-direction: column; gap: 10px; }
+    .guide-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 15px; border-left: 4px solid; }
+    .guide-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .step-chip  { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; }
+    .guide-title { font-weight: 700; font-size: 14px; }
+    .guide-body  { font-size: 11px; color: var(--text-muted); line-height: 1.8; }
+
+    /* ── TRACKER ── */
+    .tracker-list { display: flex; flex-direction: column; gap: 8px; }
+    .tracker-item { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; transition: background .15s; min-height: 56px; }
+    .tracker-item:hover  { background: var(--surface-hover); }
+    .tracker-item:active { background: var(--surface-hover); }
+    .tracker-icon { font-size: 22px; flex-shrink: 0; }
+    .tracker-name { font-weight: 700; font-size: 13px; color: #f1f5f9; }
+    .tracker-desc { font-size: 10px; color: var(--text-dim); }
+    .tracker-arr  { color: var(--purple); font-size: 14px; margin-left: auto; flex-shrink: 0; }
+
+    /* ── SAFETY ── */
+    .safety-list { display: flex; flex-direction: column; gap: 8px; }
+    .safety-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; }
+    .safety-card.warn { border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.04); }
+    .safety-icon  { font-size: 22px; flex-shrink: 0; line-height: 1; margin-top: 1px; }
+    .safety-title { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
+    .safety-desc  { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: var(--text);
+      padding: 9px 18px; border-radius: 20px; font-size: 11px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.45);
+      opacity: 0; pointer-events: none; z-index: 300;
+      transition: opacity .25s; white-space: nowrap;
+      max-width: calc(100vw - 32px);
+    }
+    #toast.show { opacity: 1; }
+
+    .safe-pad { height: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- Auto-update banner (shown when new SW activates) -->
+<div id="update-banner">
+  <span>🆕 Versi terbaru tersedia!</span>
+  <button id="update-reload-btn">Muat Ulang</button>
+</div>
+
+<!-- Offline indicator -->
+<div id="offline-bar">📵 Offline — menampilkan data tersimpan terakhir</div>
+
+<!-- HEADER -->
+<header id="header">
+  <div id="install-banner">
+    <span>🪂 Install AirdropHunter ke layar utama!</span>
+    <button id="install-btn">Install</button>
+    <button id="install-close" aria-label="Tutup">×</button>
+  </div>
+
+  <div id="announce-bar" role="banner"></div>
+
+  <div class="header-top">
+    <div class="logo-icon" aria-hidden="true">🪂</div>
+    <div>
+      <div class="logo-title">AirdropHunter</div>
+      <div class="logo-sub" id="version-sub">Memuat data...</div>
+    </div>
+    <div class="header-actions">
+      <div id="status-dot" aria-hidden="true"></div>
+      <span id="status-label">Online</span>
+      <button id="notif-btn" aria-label="Aktifkan notifikasi push">
+        🔔<span id="notif-badge"></span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" role="tab" aria-selected="true"  data-tab="dashboard">🏠 Dashboard</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" data-tab="guide">📖 Panduan</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" data-tab="tracker">🔗 Tracker</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" data-tab="safety">🛡️ Aman</button>
+  </nav>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard" class="tab-panel active" role="tabpanel">
+
+    <!-- Notification permission prompt -->
+    <div id="notif-prompt" role="region" aria-label="Aktifkan notifikasi">
+      <span id="notif-prompt-icon">🔔</span>
+      <div id="notif-prompt-body">
+        <div id="notif-prompt-title">Aktifkan Notifikasi Airdrop</div>
+        <div id="notif-prompt-desc">Dapat push notif setiap ada airdrop potensial baru</div>
+      </div>
+      <button id="notif-allow-btn">Aktifkan</button>
+      <button id="notif-dismiss-btn" aria-label="Tutup">×</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-val" id="stat-total" style="color:var(--purple)">—</div>
+        <div class="stat-lbl">Airdrop Aktif</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-val" id="stat-tasks" style="color:var(--cyan)">—</div>
+        <div class="stat-lbl">Tasks Selesai</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🆕</div>
+        <div class="stat-val" id="stat-new" style="color:var(--red)">—</div>
+        <div class="stat-lbl">Baru Minggu Ini</div>
+      </div>
+    </div>
+
+    <div id="last-updated-row"></div>
+
+    <!-- Filters -->
+    <div class="filters" role="group" aria-label="Filter airdrop">
+      <button class="filter-btn active" data-filter="Semua">Semua</button>
+      <button class="filter-btn" data-filter="Layer 2">Layer 2</button>
+      <button class="filter-btn" data-filter="NFT">NFT</button>
+      <button class="filter-btn" data-filter="DeFi">DeFi</button>
+      <button class="filter-btn" data-filter="Gaming">Gaming</button>
+      <button class="filter-btn" data-filter="Gratis">🆓 Gratis</button>
+    </div>
+
+    <!-- Card list with skeleton -->
+    <div id="cards-list" role="list">
+      <div class="skeleton skel-card"></div>
+      <div class="skeleton skel-card"></div>
+      <div class="skeleton skel-card"></div>
+    </div>
+  </section>
+
+  <!-- GUIDE -->
+  <section id="tab-guide" class="tab-panel" role="tabpanel">
+    <h2 style="font-size:15px;font-weight:800;margin-bottom:14px;color:var(--purple-light)">📖 Panduan Lengkap Airdrop Hunting</h2>
+    <div class="guide-list" id="guide-list"></div>
+  </section>
+
+  <!-- TRACKER -->
+  <section id="tab-tracker" class="tab-panel" role="tabpanel">
+    <h2 style="font-size:15px;font-weight:800;margin-bottom:4px;color:var(--purple-light)">🔗 Sumber Tracker Terpercaya</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Bookmark semua ini untuk update airdrop harian:</p>
+    <div class="tracker-list" id="tracker-list"></div>
+  </section>
+
+  <!-- SAFETY -->
+  <section id="tab-safety" class="tab-panel" role="tabpanel">
+    <h2 style="font-size:15px;font-weight:800;margin-bottom:4px;color:var(--red)">🛡️ Tips Keamanan Airdrop</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Baca ini sebelum mulai farming:</p>
+    <div class="safety-list" id="safety-list"></div>
+  </section>
+
+  <div class="safe-pad"></div>
+</main>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modal-overlay" role="dialog" aria-modal="true" aria-label="Detail airdrop">
+  <div id="modal-sheet">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-head" id="modal-head">
+      <div class="modal-toprow">
+        <span class="modal-name" id="modal-name">—</span>
+        <button id="modal-close-btn" aria-label="Tutup modal">×</button>
+      </div>
+      <div class="modal-pills" id="modal-pills"></div>
+    </div>
+    <div class="modal-body">
+      <div class="sec-label">✅ Tasks Checklist</div>
+      <div class="task-list" id="modal-task-list"></div>
+      <div class="tips-box">
+        <div class="tips-lbl">💡 Tips Pro</div>
+        <div class="tips-body" id="modal-tips-text">—</div>
+      </div>
+      <div class="modal-links" id="modal-link-row"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FIREBASE SDK (ES Module)
+════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }             from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+
+// ─── Load config (defined in firebase-config.js as window globals) ───────────
+// firebase-config.js loads before this module tag via standard script
+// FIX: guard against missing/unconfigured values
+const cfg     = window.FIREBASE_CONFIG  || null;
+const vapidKey= window.FCM_VAPID_KEY    || null;
+const cfgOk   = cfg && !cfg.apiKey.includes('GANTI');
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let airdrops      = [];          // live data from Firebase
+let currentFilter = 'Semua';
+let activeDropId  = null;        // which modal is open
+let deferredPrompt = null;       // PWA install prompt
+
+// Checklist: { "dropId-taskIdx": true/false }
+// FIX: safe parse — if corrupt, reset to empty
+let checklist = (() => {
+  try { return JSON.parse(localStorage.getItem('ah_checklist') || '{}'); }
+  catch { return {}; }
+})();
+
+function saveChecklist() {
+  try { localStorage.setItem('ah_checklist', JSON.stringify(checklist)); }
+  catch (e) { console.warn('localStorage write failed:', e); }
+}
+
+// ─── FIREBASE ────────────────────────────────────────────────────────────────
+let db, messaging;
+
+if (cfgOk) {
+  try {
+    const app = initializeApp(cfg);
+    db        = getDatabase(app);
+    messaging = getMessaging(app);
+  } catch (e) {
+    console.warn('[Firebase] init failed:', e.message);
+  }
+}
+
+// Load from localStorage cache immediately (instant render)
+function loadCache() {
+  try {
+    const raw = localStorage.getItem('ah_airdrops');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // FIX: handle both object and array formats
+      airdrops = Array.isArray(parsed) ? parsed : Object.values(parsed);
+      renderCards();
+      updateStats();
+    }
+  } catch (e) {
+    console.warn('[Cache] parse error:', e);
+  }
+}
+
+// Subscribe to Firebase Realtime Database
+function subscribeDB() {
+  if (!db) { loadCache(); return; }
+
+  const rootRef = ref(db, '/');
+  onValue(rootRef, snap => {
+    const data = snap.val();
+    if (!data || !data.airdrops) { loadCache(); return; }
+
+    // FIX: convert object to array safely
+    const raw = data.airdrops;
+    airdrops = Array.isArray(raw) ? raw : Object.values(raw);
+
+    // Persist to cache
+    try { localStorage.setItem('ah_airdrops', JSON.stringify(airdrops)); } catch {}
+
+    renderCards();
+    updateStats();
+
+    // Meta
+    const meta = data.meta || {};
+    const ver  = meta.version || '';
+    const date = meta.lastUpdated || '';
+    document.getElementById('version-sub').textContent =
+      [date && `Update: ${date}`, ver && `v${ver}`].filter(Boolean).join(' · ') || 'AirdropHunter';
+
+    // Announcement
+    const ann = (meta.announcement || '').trim();
+    const bar = document.getElementById('announce-bar');
+    if (ann) {
+      bar.textContent = '📢 ' + ann;
+      bar.classList.add('visible');
+    } else {
+      bar.classList.remove('visible');
+    }
+
+    // If modal is open, refresh its task states
+    if (activeDropId) _refreshModalTasks(activeDropId);
+
+  }, err => {
+    console.warn('[DB] read error:', err);
+    loadCache();
+  });
+}
+
+// ─── RENDER CARDS ────────────────────────────────────────────────────────────
+function renderCards() {
+  const list = document.getElementById('cards-list');
+
+  const filtered = currentFilter === 'Semua'
+    ? airdrops
+    : airdrops.filter(d => Array.isArray(d.filters) && d.filters.includes(currentFilter));
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><span>🔍</span>Tidak ada airdrop untuk filter ini</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(drop => {
+    const tasks = Array.isArray(drop.tasks) ? drop.tasks : [];
+    const total = tasks.length;
+    const done  = tasks.filter((_, i) => checklist[`${drop.id}-${i}`]).length;
+    const pct   = total ? Math.round((done / total) * 100) : 0;
+
+    // FIX: sanitize color — fallback if missing
+    const color  = drop.color  || '#8b5cf6';
+    const tagBg  = drop.tagBg  || 'rgba(255,255,255,0.1)';
+    const tagClr = drop.tagColor || '#e2e8f0';
+    const tagBrd = drop.tagBorder || 'transparent';
+
+    return `
+      <div class="ah-card" role="listitem" tabindex="0"
+           data-id="${drop.id}"
+           onclick="APP.openModal('${drop.id}')"
+           onkeydown="if(event.key==='Enter'||event.key===' ')APP.openModal('${drop.id}')">
+        <div class="ah-card-accent" style="background:${color}"></div>
+        ${drop.isNew ? '<div class="new-pill">BARU</div>' : ''}
+        <div class="ah-card-row">
+          <div class="ah-card-main">
+            <div class="badge-row">
+              <span class="pill" style="background:${tagBg};color:${tagClr};border:1px solid ${tagBrd}">${drop.tag || ''}</span>
+              <span class="pill" style="background:rgba(255,255,255,0.07);color:var(--text-muted)">${drop.cat || ''}</span>
+            </div>
+            <div class="card-name">${drop.name || 'Unnamed'}</div>
+            <div class="card-meta">${drop.status || ''} · ${drop.chain || ''} · ${drop.modal || ''}</div>
+            <div class="prog-row">
+              <div class="prog-track">
+                <div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},var(--cyan))"></div>
+              </div>
+              <span class="prog-lbl">${done}/${total}</span>
+            </div>
+          </div>
+          <div class="score-ring" style="border:3px solid ${color};background:${color}18">
+            <span class="score-num" style="color:${color}">${drop.rewardScore ?? '?'}</span>
+            <span class="score-sub">score</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-total').textContent = airdrops.length || 0;
+
+  let done = 0;
+  airdrops.forEach(d => {
+    (d.tasks || []).forEach((_, i) => { if (checklist[`${d.id}-${i}`]) done++; });
+  });
+  document.getElementById('stat-tasks').textContent = done;
+
+  const newCount = airdrops.filter(d => d.isNew).length;
+  document.getElementById('stat-new').textContent = newCount;
+
+  // Last updated — pick the newest updatedAt across all drops
+  const latest = airdrops.reduce((acc, d) => (d.updatedAt || '') > acc ? (d.updatedAt || '') : acc, '');
+  document.getElementById('last-updated-row').textContent =
+    latest ? `Terakhir diupdate: ${latest}` : '';
+}
+
+// ─── MODAL ───────────────────────────────────────────────────────────────────
+window.APP = {
+
+  openModal(id) {
+    const drop = airdrops.find(d => d.id === id);
+    if (!drop) return;
+    activeDropId = id;
+
+    const color = drop.color || '#8b5cf6';
+
+    // Header style
+    const head = document.getElementById('modal-head');
+    head.style.background     = `linear-gradient(90deg, ${color}1a, transparent)`;
+    head.style.borderBottom   = `1px solid ${color}2a`;
+
+    document.getElementById('modal-name').textContent = drop.name || '—';
+
+    // Pills
+    document.getElementById('modal-pills').innerHTML = `
+      <span class="pill" style="padding:4px 10px;background:rgba(255,255,255,0.08);color:var(--text-muted)">${drop.status || ''}</span>
+      <span class="pill" style="padding:4px 10px;background:${color}22;color:${color}">Reward: ${drop.reward || ''}</span>
+      <span class="pill" style="padding:4px 10px;background:rgba(255,255,255,0.08);color:var(--text-muted)">Modal: ${drop.modal || ''}</span>`;
+
+    // Tasks
+    this._renderTasks(drop, color);
+
+    // Tips
+    document.getElementById('modal-tips-text').textContent = drop.tips || '—';
+
+    // Links
+    const lo = drop.links || {};
+    document.getElementById('modal-link-row').innerHTML = `
+      <a class="mlink" href="${lo.official || '#'}" target="_blank" rel="noopener noreferrer"
+         style="background:linear-gradient(135deg,${color},${color}bb);color:#fff">🌐 Website Resmi</a>
+      <a class="mlink outline" href="${lo.tracker || '#'}" target="_blank" rel="noopener noreferrer">📊 Cek Tracker</a>`;
+
+    // Open
+    const overlay = document.getElementById('modal-overlay');
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    // Reset scroll
+    document.getElementById('modal-sheet').scrollTop = 0;
+  },
+
+  _renderTasks(drop, color) {
+    const tasks = Array.isArray(drop.tasks) ? drop.tasks : [];
+    document.getElementById('modal-task-list').innerHTML = tasks.map((task, i) => {
+      const done = !!checklist[`${drop.id}-${i}`];
+      return `
+        <div class="task-item ${done ? 'done' : ''}"
+             id="t-${drop.id}-${i}"
+             role="checkbox" aria-checked="${done}"
+             tabindex="0"
+             onclick="APP.toggleTask('${drop.id}',${i},'${color}')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();APP.toggleTask('${drop.id}',${i},'${color}')}">
+          <div class="task-check" id="tc-${drop.id}-${i}"
+               style="${done ? `background:${color};border-color:${color}` : ''}">${done ? '✓' : ''}</div>
+          <span class="task-text">${task}</span>
+        </div>`;
+    }).join('');
+  },
+
+  toggleTask(dropId, idx, color) {
+    const key  = `${dropId}-${idx}`;
+    checklist[key] = !checklist[key];
+    saveChecklist();
+    const done = checklist[key];
+
+    // Update task item DOM
+    const item  = document.getElementById(`t-${dropId}-${idx}`);
+    const check = document.getElementById(`tc-${dropId}-${idx}`);
+    if (!item || !check) return;
+
+    item.classList.toggle('done', done);
+    item.setAttribute('aria-checked', done);
+    check.innerHTML    = done ? '✓' : '';
+    check.style.cssText = done ? `background:${color};border-color:${color}` : '';
+
+    showToast(done ? '✅ Task selesai!' : '↩️ Task dibatalkan');
+    updateStats();
+    // Refresh card progress bar without closing modal
+    renderCards();
+  }
+};
+
+// FIX: refresh tasks in-place when DB updates while modal is open
+function _refreshModalTasks(id) {
+  const drop = airdrops.find(d => d.id === id);
+  if (!drop) return;
+  const color = drop.color || '#8b5cf6';
+  window.APP._renderTasks(drop, color);
+}
+
+function closeModal() {
+  activeDropId = null;
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    const panel = document.getElementById('tab-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderCards();
+  });
+});
+
+// ─── MODAL CLOSE ─────────────────────────────────────────────────────────────
+document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+// FIX: close modal on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('modal-overlay').classList.contains('open')) closeModal();
+});
+
+// ─── FCM NOTIFICATIONS ───────────────────────────────────────────────────────
+async function requestNotifPermission() {
+  if (!messaging || !vapidKey || vapidKey.includes('GANTI')) {
+    showToast('⚠️ FCM belum dikonfigurasi di firebase-config.js');
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { showToast('❌ Izin notifikasi ditolak'); return; }
+
+    // FIX: get SW registration explicitly for getToken
+    const swReg = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
+
+    if (token) {
+      localStorage.setItem('ah_fcm_token', token);
+      showToast('🔔 Notifikasi aktif!');
+      hideNotifPrompt();
+      document.getElementById('notif-badge').classList.remove('on');
+      console.log('[FCM] Token (save this for sending notifications):', token);
+    } else {
+      showToast('⚠️ Gagal dapat token FCM');
+    }
+  } catch (e) {
+    showToast('❌ Notifikasi gagal: ' + e.message);
+    console.error('[FCM]', e);
+  }
+}
+
+// Foreground message
+if (messaging) {
+  onMessage(messaging, payload => {
+    const title = payload.notification?.title || 'Airdrop baru!';
+    showToast(`🔔 ${title}`);
+    document.getElementById('notif-badge').classList.add('on');
+  });
+}
+
+function showNotifPrompt() {
+  if ('Notification' in window &&
+      Notification.permission === 'default' &&
+      !localStorage.getItem('ah_notif_dismissed') &&
+      cfgOk) {
+    setTimeout(() => document.getElementById('notif-prompt').classList.add('visible'), 2000);
+  }
+}
+
+function hideNotifPrompt() {
+  document.getElementById('notif-prompt').classList.remove('visible');
+}
+
+document.getElementById('notif-allow-btn').addEventListener('click', requestNotifPermission);
+document.getElementById('notif-dismiss-btn').addEventListener('click', () => {
+  hideNotifPrompt();
+  localStorage.setItem('ah_notif_dismissed', '1');
+});
+document.getElementById('notif-btn').addEventListener('click', requestNotifPermission);
+
+// ─── PWA INSTALL ─────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('visible');
+});
+
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('install-banner').classList.remove('visible');
+  if (outcome === 'accepted') showToast('🎉 App berhasil diinstall!');
+});
+
+document.getElementById('install-close').addEventListener('click', () => {
+  document.getElementById('install-banner').classList.remove('visible');
+});
+
+window.addEventListener('appinstalled', () => showToast('✅ AirdropHunter terinstall!'));
+
+// ─── ONLINE / OFFLINE ────────────────────────────────────────────────────────
+function syncOnlineStatus() {
+  const online = navigator.onLine;
+  document.getElementById('offline-bar').style.display = online ? 'none' : 'block';
+  document.getElementById('status-dot').classList.toggle('offline', !online);
+  document.getElementById('status-label').textContent = online ? 'Online' : 'Offline';
+}
+window.addEventListener('online',  syncOnlineStatus);
+window.addEventListener('offline', syncOnlineStatus);
+syncOnlineStatus();
+
+// ─── AUTO-UPDATE (SW message) ─────────────────────────────────────────────────
+// FIX: when GitHub Actions deploys a new version, the SW sends 'NEW_VERSION'
+// We show a banner so user can reload to get the new version
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data && event.data.type === 'NEW_VERSION') {
+      const banner = document.getElementById('update-banner');
+      banner.classList.add('visible');
+    }
+  });
+}
+
+document.getElementById('update-reload-btn').addEventListener('click', () => {
+  window.location.reload();
+});
+
+// ─── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' })
+    .then(reg => {
+      console.log('[SW] Registered, scope:', reg.scope);
+      // FIX: check for waiting SW (pending update) immediately on load
+      if (reg.waiting) {
+        document.getElementById('update-banner').classList.add('visible');
+      }
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // New SW installed but waiting — show update banner
+            document.getElementById('update-banner').classList.add('visible');
+          }
+        });
+      });
+    })
+    .catch(e => console.warn('[SW] Registration failed:', e));
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ─── STATIC CONTENT ──────────────────────────────────────────────────────────
+const GUIDES = [
+  { step:'01', color:'#8b5cf6', title:'Siapkan Wallet',
+    body:'Buat wallet MetaMask (browser extension) dan/atau Phantom (Solana). PENTING: buat wallet baru khusus farming airdrop, terpisah dari wallet utama. Simpan seed phrase di kertas offline — jangan foto atau simpan digital.' },
+  { step:'02', color:'#06b6d4', title:'Pahami Jenis Airdrop',
+    body:'Ada 4 jenis: (1) Retroactive = reward karena sudah pakai produk di masa lalu, (2) Testnet = gratis pakai jaringan percobaan, (3) Quest/Task = selesaikan tugas di Galxe/Layer3, (4) NFT = hold NFT tertentu untuk dapat token.' },
+  { step:'03', color:'#f59e0b', title:'Beli ETH/Gas Kecil',
+    body:'Sebagian besar airdrop Ethereum butuh gas fee ($1–10). Beli ETH di Indodax/Tokocrypto, lalu transfer ke wallet farming. Untuk Solana, beli SOL sedikit. Untuk testnet, gas sepenuhnya GRATIS.' },
+  { step:'04', color:'#10b981', title:'Farming Rutin',
+    body:'Konsistensi adalah kunci. Swap, bridge, stake, atau coba fitur baru SETIAP MINGGU di project target. 6 bulan aktivitas rutin jauh lebih dihargai daripada 100 transaksi dalam 1 hari.' },
+  { step:'05', color:'#f43f5e', title:'Track & Klaim',
+    body:'Pantau airdrops.io, dropstab.com, dan Twitter/X resmi project. Saat klaim dibuka, kunjungi HANYA situs resmi. Setelah klaim, segera transfer ke wallet utama jika nilainya signifikan.' },
+];
+
+const TRACKERS = [
+  { icon:'🔍', name:'Airdrops.io',       desc:'600+ airdrop aktif, update harian',  url:'https://airdrops.io' },
+  { icon:'📊', name:'DropsTab',           desc:'Point farming & trending activities', url:'https://dropstab.com/activities' },
+  { icon:'🚨', name:'Airdrop Alert',      desc:'Guide farming + strategi 2026',       url:'https://airdropalert.com' },
+  { icon:'🦎', name:'CoinGecko Airdrops', desc:'Upcoming & confirmed airdrops',       url:'https://coingecko.com/learn/new-crypto-airdrop-rewards' },
+  { icon:'🏆', name:'Layer3',             desc:'Quests & tasks untuk earning',        url:'https://layer3.xyz' },
+  { icon:'🌌', name:'Galxe',              desc:'Credential & campaign platform',      url:'https://galxe.com' },
+];
+
+const SAFETY = [
+  { icon:'🔐', title:'Jangan pernah beri private key',  desc:'Airdrop legit TIDAK PERNAH minta seed phrase atau private key. Siapa pun yang minta itu adalah scammer.' },
+  { icon:'👛', title:'Gunakan wallet khusus farming',   desc:'Buat wallet baru terpisah untuk farming. Jangan pakai wallet utama yang menyimpan aset besar kamu.' },
+  { icon:'🔎', title:'Verifikasi link official',         desc:'Selalu cek URL asli lewat Twitter/X resmi project. Banyak situs phishing dengan nama mirip sengaja dibuat untuk menipu.' },
+  { icon:'🧹', title:'Revoke approval rutin',            desc:'Gunakan revoke.cash secara rutin untuk hapus approval smart contract yang tidak perlu dari wallet farming kamu.' },
+  { icon:'📅', title:'Konsistensi > kuantitas',          desc:'Project lebih pilih user aktif 6 bulan daripada spam dalam 1 hari. Farming organik jauh lebih efektif.' },
+  { icon:'⚠️', title:'Ini bukan financial advice',      desc:'Crypto sangat volatil dan berisiko tinggi. Hanya gunakan dana yang siap kamu riskan kehilangan sepenuhnya.', warn: true },
+];
+
+document.getElementById('guide-list').innerHTML = GUIDES.map(g => `
+  <div class="guide-card" style="border-left-color:${g.color}">
+    <div class="guide-head">
+      <div class="step-chip" style="background:${g.color}22;color:${g.color}">${g.step}</div>
+      <span class="guide-title">${g.title}</span>
+    </div>
+    <p class="guide-body">${g.body}</p>
+  </div>`).join('');
+
+document.getElementById('tracker-list').innerHTML = TRACKERS.map(t => `
+  <a class="tracker-item" href="${t.url}" target="_blank" rel="noopener noreferrer">
+    <span class="tracker-icon">${t.icon}</span>
+    <div><div class="tracker-name">${t.name}</div><div class="tracker-desc">${t.desc}</div></div>
+    <span class="tracker-arr">→</span>
+  </a>`).join('');
+
+document.getElementById('safety-list').innerHTML = SAFETY.map(s => `
+  <div class="safety-card ${s.warn ? 'warn' : ''}">
+    <span class="safety-icon">${s.icon}</span>
+    <div><div class="safety-title">${s.title}</div><div class="safety-desc">${s.desc}</div></div>
+  </div>`).join('');
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadCache();        // instant render from local cache
+subscribeDB();      // then sync realtime from Firebase
+showNotifPrompt();  // maybe show notif permission card
+</script>
+
+<!-- firebase-config.js must load BEFORE the module script above -->
+<script src="firebase-config.js"></script>
+</body>
+</html>

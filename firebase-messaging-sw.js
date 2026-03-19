@@ -98,13 +98,13 @@ let messagingInitialized = false;
 
 try {
   firebase.initializeApp({
-    apiKey:            "GANTI_API_KEY",
-    authDomain:        "GANTI.firebaseapp.com",
-    databaseURL:       "https://GANTI-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId:         "GANTI",
-    storageBucket:     "GANTI.appspot.com",
-    messagingSenderId: "GANTI_SENDER_ID",
-    appId:             "GANTI_APP_ID"
+    apiKey:            "AIzaSyC3tF32e7k0vIbNEPbDhhpJrcSUFjSuQes",
+    authDomain:        "solana-memecoin-tracker.firebaseapp.com",
+    databaseURL:       "https://solana-memecoin-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "solana-memecoin-tracker",
+    storageBucket:     "solana-memecoin-tracker.firebasestorage.app",
+    messagingSenderId: "1018565776645",
+    appId:             "1:1018565776645:web:80bb90c98efa9027ae936c"
   });
   messagingInitialized = true;
 } catch (e) {

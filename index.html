@@ -93,8 +93,8 @@
 
     /* ── FLOATING INSTALL BUTTON (FAB) ── */
     #fab-install {
-      display: none;
-      position: fixed; bottom: 24px; right: 16px; z-index: 150;
+      display: flex;
+      position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); right: 16px; z-index: 150;
       align-items: center; gap: 10px;
       background: linear-gradient(135deg, #8b5cf6, #6d28d9);
       color: #fff; border: none; border-radius: 50px;
@@ -104,10 +104,9 @@
       cursor: pointer;
       animation: fabPulse 2.4s infinite;
       transition: transform .15s;
-      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     }
-    #fab-install.visible { display: flex; }
-    #fab-install:active  { transform: scale(0.95); }
+    #fab-install.hidden { display: none !important; }
+    #fab-install:active { transform: scale(0.95); }
     @media (display-mode: standalone) { #fab-install { display: none !important; } }
     @keyframes fabPulse {
       0%   { box-shadow: 0 4px 24px rgba(139,92,246,0.55), 0 0 0 0   rgba(139,92,246,0.4); }
@@ -430,7 +429,7 @@
   window.addEventListener('appinstalled', function() {
     window._deferredPrompt = null;
     var fab = document.getElementById('fab-install');
-    if (fab) fab.classList.remove('visible');
+    if (fab) fab.classList.add('hidden');
   });
 </script>
 
@@ -1016,12 +1015,14 @@ window.addEventListener('appinstalled', () => {
 });
 
 // ─── FAB INSTALL BUTTON ───────────────────────────────────────────────────────
+// FAB selalu tampil (display:flex di CSS) kecuali:
+// 1. Sudah running sebagai PWA installed (standalone mode)
+// 2. Sudah dismiss manual
+
 const fab = document.getElementById('fab-install');
 
-function showFab() { fab.classList.add('visible'); }
-function hideFab() { fab.classList.remove('visible'); }
+function hideFab() { fab.classList.add('hidden'); }
 
-// Cek apakah sudah running sebagai PWA installed
 const isInstalled = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
 
@@ -1029,12 +1030,11 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
 }
 
-// Jika sudah installed → sembunyikan FAB selamanya
 if (isInstalled) {
+  // Sudah installed — sembunyikan
   hideFab();
 } else if (isIOS()) {
-  // iOS Safari: tidak ada beforeinstallprompt → tampilkan langsung
-  showFab();
+  // iOS: tap FAB → buka instruksi manual
   fab.addEventListener('click', () => {
     document.getElementById('ios-hint').classList.add('open');
   });
@@ -1047,33 +1047,21 @@ if (isInstalled) {
   });
 } else {
   // Android Chrome
-  // Pakai window._deferredPrompt (di-set oleh classic script sebelum module load)
-  // sehingga tidak ada masalah scope antar module/non-module
-
-  // Tampilkan FAB segera jika prompt sudah siap
-  if (window._deferredPrompt) showFab();
-
-  // Atau tampil setelah 1.5 detik sebagai fallback
-  setTimeout(() => {
-    if (!isInstalled) showFab();
-  }, 1500);
-
   fab.addEventListener('click', async () => {
     const prompt = window._deferredPrompt;
     if (prompt) {
-      // Native PWA install dialog
+      // Native PWA install dialog — cara terbaik
       prompt.prompt();
       const { outcome } = await prompt.userChoice;
       window._deferredPrompt = null;
-      deferredPrompt = null;
       if (outcome === 'accepted') {
         hideFab();
-        document.getElementById('install-banner').classList.remove('visible');
         showToast('🎉 AirdropHunter berhasil diinstall!');
       }
     } else {
-      // Fallback manual — prompt belum siap
-      showToast('Tap ⋮ di Chrome → "Tambahkan ke layar utama"');
+      // beforeinstallprompt belum fire (Chrome belum anggap installable)
+      // Buka instruksi manual
+      showToast('Tap ⋮ di Chrome → Tambahkan ke layar utama');
     }
   });
 }
